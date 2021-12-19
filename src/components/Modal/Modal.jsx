@@ -1,38 +1,35 @@
 import { createPortal } from 'react-dom';
-import { Component } from 'react';
+import { useEffect } from 'react';
 import styles from './Modal.module.css';
 import PropTypes from 'prop-types';
 
 const modalRoot = document.querySelector('#modal-root');
 
-class Modal extends Component {
-  componentDidMount() {
-    window.addEventListener('keydown', this.hendelKeyDown);
-  }
+const Modal = ({ showModal, children }) => {
+  useEffect(() => {
+    window.addEventListener('keydown', hendelClose);
 
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this.hendelKeyDown);
-  }
-  hendelKeyDown = e => {
+    return () => {
+      window.addEventListener('keydown', hendelClose);
+    };
+  }, []);
+
+  const hendelClose = e => {
     if (e.code === 'Escape') {
-      this.props.showModal();
+      return showModal();
     }
-  };
-  hendelBecdropClick = e => {
     if (e.currentTarget === e.target) {
-      this.props.showModal();
+      return showModal();
     }
   };
 
-  render() {
-    return createPortal(
-      <div className={styles.overlay} onClick={this.hendelBecdropClick}>
-        <div className={styles.modal}>{this.props.children}</div>
-      </div>,
-      modalRoot,
-    );
-  }
-}
+  return createPortal(
+    <div className={styles.overlay} onClick={hendelClose}>
+      <div className={styles.modal}>{children}</div>
+    </div>,
+    modalRoot,
+  );
+};
 
 Modal.propTypes = {
   showModal: PropTypes.func.isRequired,

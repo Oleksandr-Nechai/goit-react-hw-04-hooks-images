@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import { useState, useEffect } from 'react';
 import Modal from './components/Modal';
 import Searchbar from './components/Searchbar';
 import Button from './components/Button';
@@ -7,42 +7,42 @@ import Loader from './components/Loader';
 import { productsApi } from './shared/service/Api';
 import './App.css';
 
-class App extends Component {
-  state = {
-    pictures: [],
-    page: 1,
-    query: '',
-    largeImage: '',
-    imgTags: '',
-    error: null,
-    showModal: false,
-    isLoading: false,
-    finish: false,
+const initialState = {
+  pictures: [],
+  isLoading: false,
+  error: false,
+  finish: false,
+  showModal: false,
+  largeImageURL: '',
+  tags: '',
+};
+const App = () => {
+  const [page, setPage] = useState(1);
+  const [query, setQuery] = useState('');
+  const [state, setState] = useState(initialState);
+
+  const onChangeQwery = query => {
+    setQuery(query);
   };
 
-  componentDidUpdate(prevProps, prevState) {
-    const { query, isLoading, page } = this.state;
-    if (prevState.query !== query || (isLoading && prevState.page < page)) {
-      this.fetchProducts();
-      this.setState({ finish: false });
-    }
-  }
+  useEffect(() => {
+    if (!query) return;
+    setState({ pictures: [], isLoading: true, finish: false });
+    fetchProducts();
+  }, [query]);
+  useEffect(() => {
+    if (!query) return;
+    fetchProducts();
+  }, [page]);
 
-  toggleModal = () => {
-    this.setState(state => ({
-      showModal: !state.showModal,
-    }));
-  };
-  async fetchProducts() {
+  const fetchProducts = async () => {
     try {
-      const { page, query } = this.state;
-      this.setState({ isLoading: true });
       const { data } = await productsApi.searchPictures(page, query);
-      this.setState(({ pictures }) => {
+      setState(({ pictures }) => {
         const newState = {
           pictures: [...pictures, ...data.hits],
           isLoading: false,
-          error: null,
+          error: false,
         };
         if (data.hits.length < 11) {
           newState.finish = true;
@@ -53,43 +53,50 @@ class App extends Component {
         return newState;
       });
     } catch (error) {
-      this.setState({
+      setState({
         isLoading: false,
         error,
       });
     }
-  }
+  };
+  const { pictures, error, isLoading, finish, showModal, largeImageURL, tags } = state;
+  const loadMore = () => {
+    setPage(prevState => {
+      return prevState + 1;
+    });
+    state.isLoading = true;
+    setState({ ...state });
+  };
 
-  handleOpenModal = (largeImage = '') => {
-    this.setState({ largeImage });
+  const handleOpenModal = id => {
+    setState(prevState => {
+      const { pictures } = prevState;
 
-    this.toggleModal();
+      const { largeImageURL, tags } = pictures.find(picture => picture.id === id);
+      prevState.showModal = true;
+      prevState.largeImageURL = largeImageURL;
+      prevState.tags = tags;
+      return { ...prevState };
+    });
   };
-  onChangeQwery = ({ query }) => {
-    this.setState({ query: query, page: 1, pictures: [], error: null });
+  const closeModal = e => {
+    state.showModal = false;
+    setState({ ...state });
   };
-  loadMore = () => {
-    this.setState(({ page }) => ({
-      isLoading: true,
-      page: page + 1,
-    }));
-  };
-  render() {
-    const { pictures, isLoading, error, showModal, largeImage, imgTags, finish } = this.state;
-    return (
-      <div className="App">
-        <Searchbar onSubmit={this.onChangeQwery} />
-        {error && <h1>Impossible to load the pictures!</h1>}
-        {!error && <ImageGallery pictures={pictures} onClick={this.handleOpenModal} />}
-        {!finish && pictures.length !== 0 && <Button onClick={this.loadMore} />}
-        {isLoading && <Loader />}
-        {showModal && (
-          <Modal showModal={this.handleOpenModal}>
-            <img src={largeImage} alt={imgTags} />
-          </Modal>
-        )}
-      </div>
-    );
-  }
-}
+  return (
+    <div className="App">
+      <Searchbar onSubmit={onChangeQwery} />
+      {error && <h1>Impossible to load the pictures!</h1>}
+      {!error && <ImageGallery pictures={pictures} onClick={handleOpenModal} />}
+      {!finish && pictures.length !== 0 && <Button onClick={loadMore} />}
+      {isLoading && <Loader />}
+      {showModal && (
+        <Modal showModal={closeModal}>
+          <img src={largeImageURL} alt={tags} />
+        </Modal>
+      )}
+    </div>
+  );
+};
+
 export default App;
